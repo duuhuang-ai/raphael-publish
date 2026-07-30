@@ -83,6 +83,11 @@ export const modernThemes: Theme[] = [
       th: 'background-color: #fef7f7 !important; padding: 12px 16px; text-align: left; font-weight: 600; color: #333 !important; border: 1px solid #f0e0e0;',
       td: 'padding: 12px 16px; border: 1px solid #f0e0e0; color: #333333 !important;',
       tr: 'border: none;',
+      'recommend-title': 'font-size: 13px; font-weight: 600; color: #d71a1b !important; line-height: 1.4 !important; margin: 48px 0 10px !important; padding: 0 !important; border: none !important; border-left: none !important; letter-spacing: 0.08em;',
+      'recommend-ul': 'margin: 0 !important; padding: 14px 18px !important; background-color: #fafafa !important; border-radius: 8px; list-style: none !important; list-style-type: none !important;',
+      'recommend-li': 'margin: 0 !important; padding: 5px 0 !important; line-height: 1.6 !important; color: #666666 !important; font-size: 14px !important; list-style: none !important; list-style-type: none !important;',
+      'recommend-li::before': 'content: "◦"; color: #d71a1b; margin-right: 8px; font-size: 12px;',
+      'recommend-a': 'color: #333333 !important; text-decoration: none !important; border-bottom: none !important; font-size: 14px !important;',
     }
   },
   {

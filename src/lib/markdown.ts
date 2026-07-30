@@ -268,6 +268,75 @@ export function applyTheme(html: string, themeId: string) {
         img.setAttribute('style', `${currentStyle}; ${appendedStyle}`);
     });
 
+    // Recommendation section detection: if an h2 heading contains
+    // keywords like 推荐/延伸/相关/往期/精选/更多, treat it and its following
+    // siblings (until next h2/h1 or end) as a recommendation block.
+    const recommendKeywords = /推荐|延伸|相关|往期|精选|更多/;
+    const hasRecommendStyles = 'recommend-title' in style;
+
+    if (hasRecommendStyles) {
+        const headings = doc.querySelectorAll('h2');
+        headings.forEach(heading => {
+            const text = heading.textContent || '';
+            if (!recommendKeywords.test(text)) return;
+
+            // Apply recommend-title style (overwrite heading's existing style)
+            heading.setAttribute('style', style['recommend-title']);
+
+            // Collect all sibling elements after this heading until next h2/h1
+            const sectionSiblings: Element[] = [];
+            let cursor = heading.nextElementSibling;
+            while (cursor) {
+                if (cursor.tagName === 'H2' || cursor.tagName === 'H1') break;
+                sectionSiblings.push(cursor);
+                cursor = cursor.nextElementSibling;
+            }
+
+            // Apply recommend styles to elements inside the section
+            sectionSiblings.forEach(el => {
+                // Apply to ul/ol directly in section
+                if (el.tagName === 'UL' || el.tagName === 'OL') {
+                    el.setAttribute('style', style['recommend-ul']);
+                }
+                // Apply to li inside
+                const allLis = el.querySelectorAll('li');
+                allLis.forEach((li, idx) => {
+                    let liStyle = style['recommend-li'];
+                    // Remove border on last item (pseudo-classes don't work in inline styles)
+                    if (idx === allLis.length - 1 && style['recommend-li:last-child']) {
+                        liStyle += '; ' + style['recommend-li:last-child'];
+                    }
+                    li.setAttribute('style', liStyle);
+
+                    // Add prefix marker (since ::before pseudo-class doesn't work in inline styles)
+                    if (style['recommend-li::before'] && !li.querySelector('.recommend-prefix')) {
+                        const prefix = doc.createElement('span');
+                        prefix.className = 'recommend-prefix';
+                        // Extract content value from the style string, e.g. content: "◦";
+                        const contentMatch = style['recommend-li::before'].match(/content:\s*["'](.+?)["']/);
+                        const markerText = contentMatch ? contentMatch[1] : '◦';
+                        prefix.textContent = markerText;
+                        // Extract other styles from the ::before rule
+                        const beforeStyle = style['recommend-li::before']
+                            .replace(/content:\s*["'].*?["']\s*;?\s*/g, '')
+                            .trim();
+                        prefix.setAttribute('style', `display: inline-block; vertical-align: baseline; ${beforeStyle}`);
+                        li.insertBefore(prefix, li.firstChild);
+                    }
+                });
+                // Apply to a inside
+                el.querySelectorAll('a').forEach(a => {
+                    const existing = a.getAttribute('style') || '';
+                    a.setAttribute('style', existing + '; ' + style['recommend-a']);
+                });
+                // Also apply to direct li siblings (unlikely but safe)
+                if (el.tagName === 'LI') {
+                    el.setAttribute('style', style['recommend-li']);
+                }
+            });
+        });
+    }
+
     const container = doc.createElement('div');
     container.setAttribute('style', style.container);
     container.innerHTML = doc.body.innerHTML;
