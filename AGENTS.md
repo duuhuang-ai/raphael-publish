@@ -45,7 +45,8 @@ docs/superpowers/plans/  已确认功能的实施计划，按 YYYY-MM-DD-功能�
 **推荐文章区块**：h2 标题包含「推荐/延伸/相关/往期/精选/更多」关键词时，自动识别为推荐区并应用独立样式。目前少数派主题已实现（灰底卡片 + ◦ 前缀 + 红色小标题）。其他主题如需支持，在主题的 styles 里加 `recommend-title` / `recommend-ul` / `recommend-li` / `recommend-a` 即可自动生效。
 
 ## 部署
-- GitHub Pages + 自定义域名 publish.raphael.app
+- 本仓库的 GitHub Pages 地址：https://duuhuang-ai.github.io/raphael-publish/
+- publish.raphael.app 绑定原作者 liuxiaopai-ai/raphael-publish，不属于本仓库；public/CNAME 是继承的旧文件，当前 Pages 设置未绑定自定义域名。
 - push 到 `main` 分支自动触发 `.github/workflows/deploy.yml` 部署
 - 本地验证 → commit → push → 等 Actions 完成 → 线上验证
 
