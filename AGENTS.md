@@ -11,7 +11,7 @@ pnpm build        # 生产构建 (tsc + vite build)
 pnpm test         # 单元测试 (vitest)
 pnpm test:e2e     # E2E 测试 (playwright)
 ```
-首次 pnpm install 后需要 `pnpm approve-builds esbuild` 放行 esbuild 构建脚本。
+`pnpm-workspace.yaml` 已允许 esbuild 构建脚本；安装后如遇构建失败，先核对 pnpm 版本与该配置。
 
 ## 技术栈
 - React 18 + TypeScript + Vite 5

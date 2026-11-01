@@ -1,5 +1,7 @@
 # Notion ZIP 带图导入实施计划
 
+> 历史实施计划：下文“不推送或部署”仅指开发时的授权范围。本功能已于 2026-11-01 在本仓库的 GitHub Pages 上线；当前使用和发布入口以 README 与 AGENTS.md 为准。
+
 **目标**：用户从 Notion 导出单篇页面的 Markdown & CSV ZIP，在排版工具选择 ZIP 后得到正文、图片预览，并可复制到公众号及导出独立 HTML。
 
 **架构**：浏览器本地解压 ZIP，选择顶层 Markdown，按 ZIP 内相对路径匹配图片并生成当前会话可用的 object URL。导入前完成校验；复制和导出 HTML 时将这些本地图片转为 data URL。无需服务器、Notion 账号授权或上传文章。
