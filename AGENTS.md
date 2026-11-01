@@ -46,7 +46,7 @@ docs/superpowers/plans/  已确认功能的实施计划，按 YYYY-MM-DD-功能�
 
 ## 部署
 - 本仓库的 GitHub Pages 地址：https://duuhuang-ai.github.io/raphael-publish/
-- publish.raphael.app 绑定原作者 liuxiaopai-ai/raphael-publish，不属于本仓库；public/CNAME 是继承的旧文件，当前 Pages 设置未绑定自定义域名。
+- publish.raphael.app 绑定原作者 liuxiaopai-ai/raphael-publish，不属于本仓库；本仓库 Pages 未绑定自定义域名，不要把该域名加入构建产物。
 - push 到 `main` 分支自动触发 `.github/workflows/deploy.yml` 部署
 - 本地验证 → commit → push → 等 Actions 完成 → 线上验证
 
