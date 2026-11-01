@@ -1,4 +1,63 @@
 import { expect, test } from '@playwright/test';
+import { strToU8, zipSync } from 'fflate';
+
+const tinyPng = Uint8Array.from(Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAUAAAAFCAYAAACNbyblAAAAHElEQVQI12P4//8/w38GIAXDIBKE0DHxgljNBAAO9TXL0Y4OHwAAAABJRU5ErkJggg==', 'base64'));
+
+test('imports a Notion ZIP with its bundled image and shows it in the preview', async ({ page }) => {
+    await page.goto('/');
+    const archive = zipSync({
+        'Article.md': strToU8('# 导入标题\n\n正文\n\n![工作台](Article%20images/%E5%9B%BE%E7%89%87.png)'),
+        'Article images/图片.png': tinyPng,
+    });
+
+    await page.getByTestId('notion-import-input').setInputFiles({
+        name: 'article.zip', mimeType: 'application/zip', buffer: Buffer.from(archive),
+    });
+
+    const editor = page.getByTestId('editor-input');
+    await expect(editor).toHaveValue(/# 导入标题[\s\S]*!\[工作台\]\(blob:/);
+    const image = page.getByTestId('preview-content').locator('img');
+    await expect(image).toHaveCount(1);
+    await expect.poll(() => image.evaluate(img => (img as HTMLImageElement).naturalWidth)).toBeGreaterThan(0);
+});
+
+test('keeps the draft if a Notion ZIP is missing an image', async ({ page }) => {
+    await page.goto('/');
+    const editor = page.getByTestId('editor-input');
+    await editor.fill('我的草稿');
+    page.on('dialog', dialog => dialog.accept());
+    const archive = zipSync({ 'Article.md': strToU8('![缺图](media/missing.png)') });
+
+    await page.getByTestId('notion-import-input').setInputFiles({
+        name: 'article.zip', mimeType: 'application/zip', buffer: Buffer.from(archive),
+    });
+
+    await expect(editor).toHaveValue('我的草稿');
+    await expect(page.getByTestId('notion-import-status')).toContainText('图片缺失');
+});
+
+test('exports imported Notion images as self-contained HTML', async ({ page }) => {
+    await page.goto('/');
+    const archive = zipSync({
+        'Article.md': strToU8('![工作台](images/photo.png)'),
+        'images/photo.png': tinyPng,
+    });
+    await page.getByTestId('notion-import-input').setInputFiles({
+        name: 'article.zip', mimeType: 'application/zip', buffer: Buffer.from(archive),
+    });
+    await expect(page.getByTestId('notion-import-status')).toContainText('已导入 1 张');
+
+    const downloadPromise = page.waitForEvent('download');
+    await page.locator('[data-testid="export-html"]:visible').click();
+    const download = await downloadPromise;
+    const stream = await download.createReadStream();
+    const chunks: Buffer[] = [];
+    for await (const chunk of stream) chunks.push(Buffer.from(chunk));
+    const html = Buffer.concat(chunks).toString('utf8');
+
+    expect(html).toContain('src="data:image/png;base64,');
+    expect(html).not.toContain('blob:');
+});
 
 function buildLongMarkdown() {
     return Array.from({ length: 120 }, (_, index) => `## Section ${index + 1}\n\n这是第 ${index + 1} 段内容，用来验证编辑器和预览区的滚动同步是否稳定。\n\n`).join('');

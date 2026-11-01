@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { insertAtSelection } from './htmlToMarkdown';
+import { handleSmartPaste, insertAtSelection } from './htmlToMarkdown';
 
 describe('insertAtSelection', () => {
     beforeEach(() => {
@@ -49,5 +49,37 @@ describe('insertAtSelection', () => {
 
         expect(textarea.selectionStart).toBe('hello Raphael'.length);
         expect(textarea.selectionEnd).toBe('hello Raphael'.length);
+    });
+});
+
+describe('handleSmartPaste', () => {
+    it('marks unavailable Notion attachment images in place while keeping reachable images', () => {
+        const textarea = document.createElement('textarea');
+        document.body.appendChild(textarea);
+        const clipboardData = {
+            getData: (type: string) => type === 'text/html'
+                ? '<h1>标题</h1><p><img src="attachment:internal-id" alt="工作台截图"></p><p>正文</p><p><img src="https://example.com/photo.png" alt="海报"></p>'
+                : '标题\n工作台截图\n正文\n海报',
+            items: [],
+            files: []
+        } as unknown as DataTransfer;
+        let nextValue = '';
+        const pasteEvent = {
+            clipboardData,
+            currentTarget: textarea,
+            preventDefault: () => {},
+        } as unknown as React.ClipboardEvent<HTMLTextAreaElement>;
+        const alertSpy = vi.spyOn(window, 'alert').mockImplementation(() => {});
+
+        handleSmartPaste(pasteEvent, value => { nextValue = value; });
+
+        expect(nextValue).toContain('[图片待补：工作台截图]');
+        expect(nextValue).toContain('正文');
+        expect(nextValue).toContain('![海报](https://example.com/photo.png)');
+        expect(nextValue).not.toContain('attachment:');
+        expect(alertSpy).toHaveBeenCalledOnce();
+        expect(alertSpy.mock.calls[0][0]).toContain('1 张');
+        alertSpy.mockRestore();
+        textarea.remove();
     });
 });

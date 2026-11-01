@@ -1,5 +1,5 @@
-import React from 'react';
-import { Wand2 } from 'lucide-react';
+import React, { useRef, useState } from 'react';
+import { Upload, Wand2 } from 'lucide-react';
 import { handleSmartPaste } from '../lib/htmlToMarkdown';
 
 interface EditorPanelProps {
@@ -8,11 +8,34 @@ interface EditorPanelProps {
     editorScrollRef: React.RefObject<HTMLTextAreaElement>;
     onEditorScroll: () => void;
     scrollSyncEnabled: boolean;
+    onImportNotionZip: (file: File) => Promise<{ imageCount: number; externalImageCount: number } | null>;
 }
 
-export default function EditorPanel({ markdownInput, onInputChange, editorScrollRef, onEditorScroll, scrollSyncEnabled }: EditorPanelProps) {
+export default function EditorPanel({ markdownInput, onInputChange, editorScrollRef, onEditorScroll, scrollSyncEnabled, onImportNotionZip }: EditorPanelProps) {
+    const importInputRef = useRef<HTMLInputElement>(null);
+    const [importStatus, setImportStatus] = useState('');
+    const [isImporting, setIsImporting] = useState(false);
+
     const onPaste = (e: React.ClipboardEvent<HTMLTextAreaElement>) => {
         handleSmartPaste(e, onInputChange);
+    };
+
+    const onImportFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+        e.target.value = '';
+        setIsImporting(true);
+        setImportStatus('正在导入 Notion 文章…');
+        try {
+            const result = await onImportNotionZip(file);
+            setImportStatus(result
+                ? `已导入 ${result.imageCount} 张包内图片${result.externalImageCount ? `；另有 ${result.externalImageCount} 张外链图片` : ''}`
+                : '已取消导入');
+        } catch (error) {
+            setImportStatus(`导入失败：${error instanceof Error ? error.message : '无法读取文件'}`);
+        } finally {
+            setIsImporting(false);
+        }
     };
 
     return (
@@ -38,9 +61,29 @@ export default function EditorPanel({ markdownInput, onInputChange, editorScroll
                         <span className="sm:hidden">支持直接粘贴 <span className="text-[#86868b] dark:text-[#a1a1a6]">飞书、Notion或Word等</span> 富文本，自动转化</span>
                     </span>
                 </div>
+                <div className="flex items-center gap-2">
+                    <input
+                        ref={importInputRef}
+                        data-testid="notion-import-input"
+                        type="file"
+                        accept=".zip,application/zip"
+                        className="hidden"
+                        onChange={onImportFileChange}
+                    />
+                    <button
+                        type="button"
+                        disabled={isImporting}
+                        onClick={() => importInputRef.current?.click()}
+                        className="flex items-center gap-1 text-[12.5px] font-medium text-[#0066cc] dark:text-[#0a84ff] disabled:opacity-50"
+                    >
+                        <Upload size={14} />
+                        {isImporting ? '导入中…' : '导入 Notion ZIP'}
+                    </button>
+                </div>
                 <div className="text-[12px] font-mono text-[#86868b] dark:text-[#a1a1a6]">
                     {markdownInput.length} 字
                 </div>
+                {importStatus && <div data-testid="notion-import-status" role="status" className="w-full text-[12px] text-[#6e6e73] dark:text-[#a1a1a6]">{importStatus}</div>}
             </div>
         </div>
     );

@@ -23,6 +23,9 @@ turndownService.addRule('image', {
         const title = (node.title || '').replace(/"/g, '\\"');
 
         if (!src) return '';
+        if (src.toLowerCase().startsWith('attachment:')) {
+            return `[图片待补：${alt}]\n`;
+        }
 
         // Preserve full data URLs. Truncating them produces broken pasted images.
         return `![${alt}](${src}${title ? ` "${title}"` : ''})\n`;
@@ -174,11 +177,17 @@ export function handleSmartPaste(
 
         e.preventDefault();
         try {
+            const attachmentImageCount = Array.from(
+                new DOMParser().parseFromString(htmlData, 'text/html').querySelectorAll('img[src]')
+            ).filter(img => img.getAttribute('src')?.toLowerCase().startsWith('attachment:')).length;
             let markdown = turndownService.turndown(htmlData);
             markdown = markdown.replace(/\n{3,}/g, '\n\n');
 
             const textarea = e.currentTarget;
             insertAtSelection(textarea, markdown, setMarkdownInput);
+            if (attachmentImageCount > 0) {
+                alert(`检测到 ${attachmentImageCount} 张图片只有 Notion 内部引用，已在原位置标记“图片待补”。请打开原图复制图片或截图，再选中对应标记粘贴替换。`);
+            }
         } catch (err) {
             console.error('HTML to Markdown conversion failed:', err);
             // Fallback to text

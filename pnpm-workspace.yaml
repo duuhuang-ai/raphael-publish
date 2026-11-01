@@ -1,0 +1,8 @@
+packages:
+  - '.'
+
+# pnpm 10 uses onlyBuiltDependencies; pnpm 11 uses allowBuilds.
+onlyBuiltDependencies:
+  - esbuild
+allowBuilds:
+  esbuild: true

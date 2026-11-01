@@ -3,11 +3,12 @@ import { PenLine, Eye } from 'lucide-react';
 import html2pdf from 'html2pdf.js';
 import { md, preprocessMarkdown, applyTheme } from './lib/markdown';
 import { markElementIndexes } from './lib/markdownIndexer';
-import { makeWeChatCompatible, cleanInternalAttributes } from './lib/wechatCompat';
+import { makeWeChatCompatible, cleanInternalAttributes, embedLocalImages } from './lib/wechatCompat';
 import { THEMES } from './lib/themes';
 import { defaultContent } from './defaultContent';
 import { findImagePosition, selectTextAreaRange } from './lib/imageSelector';
 import { findElementPosition, type ElementLocation } from './lib/markdownLocator';
+import { parseNotionZip } from './lib/notionZipImport';
 import Header from './components/Header';
 import ThemeSelector from './components/ThemeSelector';
 import Toolbar from './components/Toolbar';
@@ -30,6 +31,7 @@ export default function App() {
     const previewInnerScrollRef = useRef<HTMLDivElement>(null);
     const scrollSyncLockRef = useRef<'editor' | 'preview' | null>(null);
     const scrollLockReleaseTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+    const importedObjectUrlsRef = useRef<string[]>([]);
 
     useEffect(() => {
         // Enforce light mode as default, do not follow system preferences
@@ -79,8 +81,20 @@ export default function App() {
             if (scrollLockReleaseTimeoutRef.current) {
                 clearTimeout(scrollLockReleaseTimeoutRef.current);
             }
+            importedObjectUrlsRef.current.forEach(url => URL.revokeObjectURL(url));
         };
     }, []);
+
+    const handleImportNotionZip = async (file: File) => {
+        if (markdownInput !== defaultContent && !window.confirm('导入会替换当前编辑内容，继续吗？')) return null;
+        const bytes = new Uint8Array(await file.arrayBuffer());
+        const result = parseNotionZip(bytes);
+        const previousUrls = importedObjectUrlsRef.current;
+        importedObjectUrlsRef.current = result.objectUrls;
+        setMarkdownInput(result.markdown);
+        requestAnimationFrame(() => previousUrls.forEach(url => URL.revokeObjectURL(url)));
+        return { imageCount: result.imageCount, externalImageCount: result.externalImageCount };
+    };
 
     const getActivePreviewScrollElement = () => {
         if (previewDevice === 'pc') return previewOuterScrollRef.current;
@@ -160,22 +174,27 @@ export default function App() {
             setTimeout(() => setCopied(false), 2000);
         } catch (err) {
             console.error('Copy failed', err);
-            alert('复制格式失败，请检查浏览器剪贴板权限');
+            alert(err instanceof Error && err.message.includes('图片资源已失效') ? err.message : '复制格式失败，请检查浏览器剪贴板权限');
         } finally {
             setIsCopying(false);
         }
     };
 
-    const handleExportHtml = () => {
+    const handleExportHtml = async () => {
         // Clean internal attributes before exporting
-        const cleanHtml = cleanInternalAttributes(renderedHtml);
-        const blob = new Blob([cleanHtml], { type: 'text/html;charset=utf-8' });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = `Raphael_Article_${new Date().getTime()}.html`;
-        a.click();
-        URL.revokeObjectURL(url);
+        try {
+            const cleanHtml = await embedLocalImages(cleanInternalAttributes(renderedHtml));
+            const blob = new Blob([cleanHtml], { type: 'text/html;charset=utf-8' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `Raphael_Article_${new Date().getTime()}.html`;
+            a.click();
+            URL.revokeObjectURL(url);
+        } catch (err) {
+            console.error('HTML export failed', err);
+            alert(err instanceof Error ? err.message : '导出 HTML 失败');
+        }
     };
 
     const handleExportPdf = () => {
@@ -319,6 +338,7 @@ export default function App() {
                         editorScrollRef={editorScrollRef}
                         onEditorScroll={handleEditorScroll}
                         scrollSyncEnabled={scrollSyncEnabled}
+                        onImportNotionZip={handleImportNotionZip}
                     />
                 </div>
                 <div className={`${activePanel === 'preview' ? 'flex' : 'hidden'} md:flex flex-col overflow-hidden`}>

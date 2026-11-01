@@ -14,22 +14,33 @@ export function cleanInternalAttributes(html: string): string {
 
 // Helper to convert images to Base64
 async function getBase64Image(imgUrl: string): Promise<string> {
+    const isImportedImage = imgUrl.startsWith('blob:');
     try {
         if (imgUrl.startsWith('data:')) return imgUrl;
 
         const response = await fetch(imgUrl, { mode: 'cors', cache: 'default' });
-        if (!response.ok) return imgUrl;
+        if (!response.ok) throw new Error('Image request failed');
 
         const blob = await response.blob();
-        return new Promise((resolve) => {
+        return new Promise((resolve, reject) => {
             const reader = new FileReader();
             reader.onloadend = () => resolve(reader.result as string);
-            reader.onerror = () => resolve(imgUrl);
+            reader.onerror = () => reject(reader.error);
             reader.readAsDataURL(blob);
         });
     } catch (e) {
+        if (isImportedImage) throw new Error('图片资源已失效，请重新导入 Notion ZIP');
         return imgUrl;
     }
+}
+
+export async function embedLocalImages(html: string): Promise<string> {
+    const doc = new DOMParser().parseFromString(html, 'text/html');
+    const images = Array.from(doc.querySelectorAll('img[src^="blob:"]'));
+    await Promise.all(images.map(async image => {
+        image.setAttribute('src', await getBase64Image(image.getAttribute('src')!));
+    }));
+    return doc.body.innerHTML;
 }
 
 export async function makeWeChatCompatible(html: string, themeId: string): Promise<string> {
